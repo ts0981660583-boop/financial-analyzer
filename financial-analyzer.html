@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>財經產業分析工具</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f5f5f3;
+    --bg-tertiary: #ebebea;
+    --text: #1a1a18;
+    --text-secondary: #6b6b68;
+    --border: rgba(0,0,0,0.12);
+    --border-hover: rgba(0,0,0,0.25);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --accent: #185FA5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg-secondary: #2a2a28;
+      --bg-tertiary: #333330;
+      --text: #f0efea;
+      --text-secondary: #999994;
+      --border: rgba(255,255,255,0.12);
+      --border-hover: rgba(255,255,255,0.25);
+      --accent: #85B7EB;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', 'Segoe UI', sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 2rem;
+  }
+
+  /* ── Header ── */
+  .header { margin-bottom: 1.75rem; }
+  .header h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .header p { font-size: 13px; color: var(--text-secondary); }
+
+  /* ── API Key 區塊 ── */
+  .api-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+  }
+  .api-section label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+  .api-row { display: flex; gap: 8px; }
+  .api-row input { flex: 1; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; font-family: monospace; }
+  .api-row input:focus { border-color: var(--border-hover); }
+  .api-note { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+  .api-note a { color: var(--accent); }
+
+  /* ── Input ── */
+  .input-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .input-row input {
+    flex: 1; font-size: 14px; padding: 10px 14px;
+    border-radius: var(--radius-md); border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); outline: none;
+    transition: border 0.15s;
+  }
+  .input-row input:focus { border-color: var(--border-hover); }
+  .btn-primary {
+    padding: 10px 20px; font-size: 14px; font-weight: 500;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: var(--radius-md); cursor: pointer;
+    white-space: nowrap; transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.82; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Chips ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.5rem; }
+  .chip {
+    font-size: 12px; padding: 4px 12px;
+    border: 1px solid var(--border); border-radius: 999px;
+    cursor: pointer; color: var(--text-secondary);
+    background: var(--bg-secondary); transition: all 0.12s;
+  }
+  .chip:hover { background: var(--bg-tertiary); color: var(--text); border-color: var(--border-hover); }
+
+  /* ── Loading ── */
+  .loading { text-align: center; padding: 3rem 0; display: none; }
+  .spinner {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 2.5px solid var(--border); border-top-color: var(--text-secondary);
+    animation: spin 0.7s linear infinite; margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem; }
+  .steps { display: flex; flex-direction: column; gap: 6px; max-width: 200px; margin: 0 auto; text-align: left; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-hover); flex-shrink: 0; transition: background 0.2s; }
+  .step.active .step-dot { background: var(--text); }
+  .step.done .step-dot { background: #639922; }
+
+  /* ── Result ── */
+  .result { display: none; }
+  .result-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+  .result-title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .result-meta { font-size: 12px; color: var(--text-secondary); }
+
+  /* ── Stat Cards ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.85rem 1rem; }
+  .stat-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+  .stat-val { font-size: 18px; font-weight: 600; color: var(--text); }
+
+  /* ── Sections ── */
+  .sections { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+  .section {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem;
+  }
+  .section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .section-icon { font-size: 16px; }
+  .section-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .points { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .points li { font-size: 13px; color: var(--text-secondary); line-height: 1.65; padding-left: 14px; position: relative; }
+  .points li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--border-hover); }
+  .badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badge { font-size: 12px; padding: 4px 11px; border-radius: var(--radius-md); }
+  .badge-pos { background: #EAF3DE; color: #3B6D11; }
+  .badge-neg { background: #FCEBEB; color: #A32D2D; }
+  .badge-neu { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+  @media (prefers-color-scheme: dark) {
+    .badge-pos { background: #27500A; color: #C0DD97; }
+    .badge-neg { background: #791F1F; color: #F7C1C1; }
+  }
+
+  /* ── News ── */
+  .news-section { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .news-item { padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .news-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .news-headline { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 3px; line-height: 1.5; }
+  .news-headline a { color: inherit; text-decoration: none; }
+  .news-headline a:hover { color: var(--accent); text-decoration: underline; }
+  .news-summary { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; line-height: 1.5; }
+  .news-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .news-source { font-size: 11px; color: var(--text-secondary); }
+  .news-date { font-size: 11px; color: var(--text-secondary); }
+  .sent { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .sent-pos { background: #EAF3DE; color: #3B6D11; }
+  .sent-neg { background: #FCEBEB; color: #A32D2D; }
+  .sent-neu { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+  @media (prefers-color-scheme: dark) {
+    .sent-pos { background: #27500A; color: #C0DD97; }
+    .sent-neg { background: #791F1F; color: #F7C1C1; }
+  }
+
+  /* ── Reset ── */
+  .reset-btn {
+    font-size: 12px; color: var(--text-secondary); cursor: pointer;
+    border: none; background: none; padding: 0; margin-top: 1.25rem;
+    text-decoration: underline;
+  }
+  .reset-btn:hover { color: var(--text); }
+
+  .err {
+    font-size: 13px; color: #A32D2D; margin-top: 8px;
+    padding: 10px 14px; background: #FCEBEB; border-radius: var(--radius-md);
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>📊 財經產業分析</h1>
+    <p>AI 自動整理產業重點 ＋ 搜尋最新相關新聞</p>
+  </div>
+
+  <!-- API Key 輸入 -->
+  <div class="api-section">
+    <label>Anthropic API Key（只存在瀏覽器，不會上傳）</label>
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." />
+    </div>
+    <p class="api-note">
+      還沒有 API Key？前往
+      <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>
+      免費申請。
+    </p>
+  </div>
+
+  <!-- 查詢輸入 -->
+  <div id="inputArea">
+    <div class="input-row">
+      <input type="text" id="queryInput" placeholder="輸入產業或公司，例：台積電、電動車、AI產業..." />
+      <button class="btn-primary" id="analyzeBtn" onclick="runAnalysis()">分析</button>
+    </div>
+    <div class="chips">
+      <span class="chip" onclick="setQ('台灣半導體產業')">台灣半導體</span>
+      <span class="chip" onclick="setQ('電動車產業')">電動車</span>
+      <span class="chip" onclick="setQ('AI人工智慧產業')">AI 產業</span>
+      <span class="chip" onclick="setQ('台灣金融科技')">金融科技</span>
+      <span class="chip" onclick="setQ('再生能源產業')">再生能源</span>
+      <span class="chip" onclick="setQ('生技醫療產業')">生技醫療</span>
+      <span class="chip" onclick="setQ('電子商務產業')">電子商務</span>
+      <span class="chip" onclick="setQ('台積電')">台積電</span>
+    </div>
+    <div class="err" id="errMsg"></div>
+  </div>
+
+  <!-- 載入中 -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-label" id="loadingLabel">準備中...</div>
+    <div class="steps">
+      <div class="step" id="step1"><span class="step-dot"></span>產業結構分析</div>
+      <div class="step" id="step2"><span class="step-dot"></span>搜尋最新新聞</div>
+      <div class="step" id="step3"><span class="step-dot"></span>整合報告</div>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result" id="result">
+    <div class="result-header">
+      <div class="result-title" id="rTitle"></div>
+      <div class="result-meta" id="rMeta"></div>
+    </div>
+    <div class="stat-grid" id="rCards"></div>
+    <div class="sections" id="rSections"></div>
+    <div class="news-section" id="rNews" style="display:none">
+      <div class="section-head">
+        <span class="section-icon">📰</span>
+        <span class="section-title">最新相關新聞</span>
+      </div>
+      <div id="newsItems"></div>
+    </div>
+    <button class="reset-btn" onclick="resetUI()">← 重新分析</button>
+  </div>
+
+</div>
+
+<script>
+const ICONS = {
+  'ti-chart-bar': '📈',
+  'ti-bulb': '💡',
+  'ti-alert-triangle': '⚠️',
+  'ti-star': '⭐',
+  'ti-building': '🏢',
+};
+
+function setQ(v) {
+  document.getElementById('queryInput').value = v;
+  document.getElementById('queryInput').focus();
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  }
+}
+
+function resetUI() {
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'block';
+  document.getElementById('queryInput').value = '';
+  document.getElementById('errMsg').style.display = 'none';
+  document.getElementById('analyzeBtn').disabled = false;
+  ['step1','step2','step3'].forEach(id => {
+    document.getElementById(id).classList.remove('active','done');
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'block';
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+async function callClaude(apiKey, body) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function runAnalysis() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const q = document.getElementById('queryInput').value.trim();
+
+  if (!apiKey) return showError('請先填入 Anthropic API Key。');
+  if (!q) return showError('請輸入要分析的產業或公司名稱。');
+
+  document.getElementById('errMsg').style.display = 'none';
+  document.getElementById('inputArea').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('analyzeBtn').disabled = true;
+
+  try {
+    // Step 1: 產業分析
+    setStep(1);
+    document.getElementById('loadingLabel').textContent = '進行產業分析...';
+
+    const analysisPrompt = `你是一位專業財經分析師。請針對「${q}」進行產業/公司重點分析。
+請嚴格以下面的 JSON 格式回覆，不要加任何說明或 markdown：
+{
+  "title": "產業/公司正式名稱",
+  "stats": [
+    {"label": "景氣評級", "value": "數值或評級"},
+    {"label": "成長趨勢", "value": "數值或評級"},
+    {"label": "投資風險", "value": "數值或評級"},
+    {"label": "市場規模", "value": "數值或評級"}
+  ],
+  "sections": [
+    {"icon": "ti-chart-bar", "title": "市場規模與趨勢", "type": "points", "items": ["重點1","重點2","重點3"]},
+    {"icon": "ti-bulb", "title": "主要驅動因素", "type": "points", "items": ["重點1","重點2","重點3"]},
+    {"icon": "ti-alert-triangle", "title": "風險與挑戰", "type": "points", "items": ["重點1","重點2"]},
+    {"icon": "ti-star", "title": "機會與展望", "type": "badges", "items": [
+      {"text": "標籤", "type": "pos"},
+      {"text": "標籤", "type": "pos"},
+      {"text": "標籤", "type": "neg"},
+      {"text": "標籤", "type": "neu"},
+      {"text": "標籤", "type": "neu"}
+    ]},
+    {"icon": "ti-building", "title": "重要廠商 / 競爭格局", "type": "points", "items": ["重點1","重點2","重點3"]}
+  ]
+}`;
+
+    const d1 = await callClaude(apiKey, {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: analysisPrompt }]
+    });
+    const t1 = d1.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(t1);
+
+    // Step 2: 搜尋新聞
+    setStep(2);
+    document.getElementById('loadingLabel').textContent = '搜尋最新新聞...';
+
+    const newsPrompt = `請使用 web search 工具搜尋「${q} 最新新聞 2025」，找出 4 則最近相關新聞。
+嚴格只輸出 JSON，不要任何說明或 markdown：
+{
+  "news": [
+    {
+      "headline": "新聞標題（繁體中文）",
+      "source": "媒體來源",
+      "date": "日期（如 2025/05/10）",
+      "url": "新聞連結（如有）",
+      "sentiment": "pos 或 neg 或 neu",
+      "summary": "一句話摘要（30字內）"
+    }
+  ]
+}`;
+
+    const d2 = await callClaude(apiKey, {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: newsPrompt }]
+    });
+    const t2 = d2.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    let newsData = { news: [] };
+    try { newsData = JSON.parse(t2); } catch(e) {}
+
+    // Step 3: 整合
+    setStep(3);
+    document.getElementById('loadingLabel').textContent = '整合報告...';
+    await new Promise(r => setTimeout(r, 350));
+
+    renderResult(analysis, newsData, q);
+
+  } catch(e) {
+    showError('發生錯誤：' + e.message);
+  }
+}
+
+function renderResult(d, newsData, q) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('rTitle').textContent = d.title || q;
+  const now = new Date();
+  document.getElementById('rMeta').textContent =
+    `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} 分析`;
+
+  document.getElementById('rCards').innerHTML = (d.stats || []).map(s =>
+    `<div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-val">${s.value}</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('rSections').innerHTML = (d.sections || []).map(sec => {
+    const icon = ICONS[sec.icon] || '▪';
+    let content = '';
+    if (sec.type === 'badges') {
+      content = `<div class="badge-row">${(sec.items || []).map(b =>
+        `<span class="badge badge-${b.type}">${b.text}</span>`
+      ).join('')}</div>`;
+    } else {
+      content = `<ul class="points">${(sec.items || []).map(i =>
+        `<li>${i}</li>`
+      ).join('')}</ul>`;
+    }
+    return `<div class="section">
+      <div class="section-head">
+        <span class="section-icon">${icon}</span>
+        <span class="section-title">${sec.title}</span>
+      </div>
+      ${content}
+    </div>`;
+  }).join('');
+
+  const news = newsData.news || [];
+  if (news.length > 0) {
+    document.getElementById('rNews').style.display = 'block';
+    document.getElementById('newsItems').innerHTML = news.map(n => {
+      const sc = n.sentiment === 'pos' ? 'sent-pos' : n.sentiment === 'neg' ? 'sent-neg' : 'sent-neu';
+      const sl = n.sentiment === 'pos' ? '正面' : n.sentiment === 'neg' ? '負面' : '中性';
+      const hl = n.url
+        ? `<a href="${n.url}" target="_blank">${n.headline}</a>`
+        : n.headline;
+      return `<div class="news-item">
+        <div class="news-headline">${hl}</div>
+        <div class="news-summary">${n.summary || ''}</div>
+        <div class="news-meta">
+          <span class="news-source">${n.source || ''}</span>
+          <span class="news-date">${n.date || ''}</span>
+          <span class="sent ${sc}">${sl}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('result').style.display = 'block';
+}
+
+document.getElementById('queryInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runAnalysis();
+});
+</script>
+</body>
+</html>
